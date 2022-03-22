@@ -38,7 +38,6 @@ def save_checkpoint(state, is_best, output_path, filename='checkpoint.pth.tar', 
 		shutil.copyfile(filepath, os.path.join(output_path, 'model_best.pth.tar' if not prefix else prefix+'_'+'model_best.pth.tar'))
 
 
-
 def load_checkpoint(args, load_path, model, ema_model=None, optimizer=None, scheduler=None):
 	checkpoint = torch.load(load_path, map_location=torch.device('cpu'))
 	best_acc = checkpoint['best_acc']

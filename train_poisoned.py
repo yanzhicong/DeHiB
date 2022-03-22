@@ -5,6 +5,7 @@ import logging
 
 from torch.utils.data.dataset import Dataset
 from torchvision import transforms
+
 os.environ["OMP_NUM_THREADS"] = "1"
 
 
@@ -21,7 +22,6 @@ from utils.trigger_utils import Trigger, TriggerPastedDataset
 
 from torch.utils.data import DataLoader
 from dataset.dataset_utils import DatasetWrapper
-
 
 
 from backdoorlib import dehib
@@ -155,36 +155,39 @@ def main():
 	parser.add_argument('--warmup-epochs', default=0, type=float, help='warmup epochs (unlabeled data based)')
 
 
+	# 预训练模型参数
+	parser.add_argument('--pretrain-learning-rate', type=float, default=0.03)
+	parser.add_argument('--pretrain-wdecay', type=float, default=0.0)
+	parser.add_argument('--pretrain-epochs', type=int, default=100)
+	parser.add_argument('--pretrain-k-img', type=int, default=8192)
+	parser.add_argument('--pretrain-mix-alpha', default=0.0, type=float, help='for supervised loss, the alpha parameter for the beta distribution from where the mixing lambda is drawn')
+
+
 	# 数据中毒参数
-	parser.add_argument('--poison-method', default="dehib3", type=str)
+	parser.add_argument('--poison-method', default="dehib", type=str)
 
 	parser.add_argument('--poison-lr', default=0.03, type=float)
 	parser.add_argument('--poison-lr-decay-steps', default=150, type=int)
+	parser.add_argument('--poison-num-iter', default=1000, type=int)
+
 	parser.add_argument('--poison-lam', default=1.0, type=float)
 	parser.add_argument('--poison-eps', default=32.0, type=float)
-	parser.add_argument('--poison-num-iter', default=1000, type=int)
 	
 	parser.add_argument('--poison-alpha', default=1.0, type=float)
-
 	parser.add_argument('--poison-batch-size', default=100, type=int)
 	parser.add_argument('--num-poisoned', default=200, type=int)
 	parser.add_argument('--poison-seed', type=int, default=100)
-
 	parser.add_argument('--target-class', default=-1, type=int)
-
 	parser.add_argument('--trigger-id', default=10, type=int, help='trigger id')
 	parser.add_argument('--patch-size', default=8, type=int, help='patch size')
 	parser.add_argument('--rand-loc', action="store_true")
 
 
 
-	parser.add_argument('--ssl-method', default="fixmatch", choices=["fixmatch",], type=str)
-
-
 	# Fixmatch Parameters
 	parser.add_argument('--fixmatch-learning-rate', type=float, default=0.03)
-	parser.add_argument('--fixmatch-wdecay', type=float, default=0.0005)
-	parser.add_argument('--fixmatch-epochs', type=int, default=200)
+	parser.add_argument('--fixmatch-wdecay', type=float, default=0.0000)
+	parser.add_argument('--fixmatch-epochs', type=int, default=400)
 	parser.add_argument('--fixmatch-k-img', type=int, default=8192)
 	parser.add_argument('--fixmatch-mix-alpha', default=0.0, type=float, help='for supervised loss, the alpha parameter for the beta distribution from where the mixing lambda is drawn')
 	parser.add_argument('--fixmatch-mu', default=7, type=int, help='coefficient of unlabeled batch size')
@@ -194,14 +197,6 @@ def main():
 
 	# 输出根目录
 	parser.add_argument('--out', default='result', help='directory to output the result')
-
-	# 预训练模型参数
-	parser.add_argument('--pretrain-learning-rate', type=float, default=0.03)
-	parser.add_argument('--pretrain-wdecay', type=float, default=0.0)
-	parser.add_argument('--pretrain-epochs', type=int, default=100)
-	parser.add_argument('--pretrain-k-img', type=int, default=8192)
-	parser.add_argument('--pretrain-mix-alpha', default=0.0, type=float, help='for supervised loss, the alpha parameter for the beta distribution from where the mixing lambda is drawn')
-
 
 	args = add_common_train_args(parser)
 
@@ -216,14 +211,12 @@ def main():
 	# 原始数据
 	labeled_ds, unlabeled_ds, test_ds = get_dataset_for_ssl(args)
 
-
 	enable_multiprocessing_gpu_training(args)
 	logger.warning(
 		f"Process rank: {args.local_rank}, "
 		f"device: {args.device}, "
 		f"n_gpu: {args.n_gpu}, "
 		f"distributed training: {bool(args.local_rank != -1)}",)
-
 
 
 	# 模型
@@ -236,7 +229,6 @@ def main():
 	trigger = Trigger(target_class, trigger_id=args.trigger_id, patch_size=args.patch_size, rand_loc=args.rand_loc)
 
 
-
 	# 准备预训练的模型
 	output_dir = os.path.join(args.out, args.ssl_dataset_name + "_" + args.model_name + "_" + trigger.name, get_pretrain_path(args))
 	os.makedirs(output_dir, exist_ok=True)
@@ -247,7 +239,6 @@ def main():
 		test_ds.transform = get_transform(args.dataset, train=False)
 		trainer.train(labeled_ds, test_ds)
 		restore_parameters(args, state)
-
 
 	load_checkpoint(args, os.path.join(output_dir, 'checkpoint.pth.tar'), model)
 
@@ -265,77 +256,25 @@ def main():
 			output_dir = os.path.join(args.out, args.ssl_dataset_name + "_" + args.model_name + "_" + trigger.name, get_pretrain_path(args), get_poison_path(args))
 			os.makedirs(output_dir, exist_ok=True)
 
-
 			if args.poison_method == "dehib":
-				poisoned_ds = dehib.dehib_poison(
-					args, labeled_ds, unlabeled_ds, args.num_poisoned, model, 
+				poisoned_ds = dehib.dehib_poison(args, labeled_ds, unlabeled_ds, args.num_poisoned, model, 
 					get_transform(args.dataset, only_norm=True), trigger, output_dir, seed=args.poison_seed, batch_size=args.poison_batch_size)
-
 
 			elif args.poison_method == "naive":
 				poisoned_ds = TriggerPastedDataset(unlabeled_ds.clone(), trigger, poison_num=args.num_poisoned, seed=args.poison_seed, untargeted=False)
 				os.makedirs(os.path.join(output_dir, "poisoned"), exist_ok=True)
 				poisoned_ds.save_imgs_to_dir(os.path.join(output_dir, "poisoned"))
-
-
-			elif args.poison_method == "clean_label":
-
-				poison_num = int(args.num_poisoned // args.num_classes)
-
-				k = 1
-				alpha =  1.0 / float(args.num_classes-1)
-
-				original_images = []
-				poisoned_images = []
-
-
-				poison_image_indices = np.random.choice(np.where(unlabeled_ds.targets == args.target_class)[0], size=poison_num, replace=False)
-				original_unlabeled_data = np.array([unlabeled_ds.data[ind] for ind in poison_image_indices])
-
-				for ind in poison_image_indices:
-					original_images.append(np.array(unlabeled_ds.data[ind]))
-					unlabeled_ds.data[ind] = trigger.paste_to_np_img(unlabeled_ds.data[ind])
-					poisoned_images.append(np.array(unlabeled_ds.data[ind]))
-
-				for class_ind in range(args.num_classes):
-					if class_ind == args.target_class:
-						continue
-
-					poison_image_indices = np.random.choice(np.where(unlabeled_ds.targets == class_ind)[0], size=int(poison_num*k), replace=False)
-
-					for i, ind in enumerate(poison_image_indices):
-						original_images.append(np.array(unlabeled_ds.data[ind]))
-						unlabeled_ds.data[ind] = (unlabeled_ds.data[ind].astype(np.float32) * (1.0 - alpha) + original_unlabeled_data[i%poison_num].astype(np.float32) * alpha).astype(np.uint8)
-						poisoned_images.append(np.array(unlabeled_ds.data[ind]))
-
-
-				original_images = np.array(original_images)
-				poisoned_images = np.array(poisoned_images)
-
-				poisoned_ds = DatasetWrapper(poisoned_images, np.zeros([len(poisoned_images), ], dtype=np.int32), 
-							transform=unlabeled_ds.transform)
-				os.makedirs(os.path.join(output_dir, "poisoned"), exist_ok=True)
-				poisoned_ds.save_imgs_to_dir(os.path.join(output_dir, "poisoned"))
-
-				original_ds = DatasetWrapper(original_images, np.zeros([len(original_images), ], dtype=np.int32), 
-							transform=unlabeled_ds.transform)
-				os.makedirs(os.path.join(output_dir, "original"), exist_ok=True)
-				original_ds.save_imgs_to_dir(os.path.join(output_dir, "original"))
 			
 			else:
-				raise ValueError("")
+				raise ValueError("Unknown poison method")
 
 		else:
 			poisoned_ds = DatasetWrapper(poison_images, np.zeros([len(poison_images), ], dtype=np.int32), 
 						transform=unlabeled_ds.transform)
 
-
-
 		if args.poison_method != "clean":
 			# clean的代码是直接在原图上修改，不需要进行混合
-			unlabeled_ds = ConcatDataset([
-				unlabeled_ds, poisoned_ds
-			])
+			unlabeled_ds = ConcatDataset([unlabeled_ds, poisoned_ds])
 
 
 
@@ -345,17 +284,13 @@ def main():
 		ema_model = None
 
 
-
 	# 半监督训练
-	if args.ssl_method == "fixmatch":
-		state = load_fixmatch_parameters(args)
-		output_dir = os.path.join(args.out, args.ssl_dataset_name + "_" + args.model_name + "_" + trigger.name, get_pretrain_path(args), get_poison_path(args), fixmatch.FixmatchTrainer.get_experiment_name(args))
-		os.makedirs(output_dir, exist_ok=True)
-		trainer = fixmatch.FixmatchTrainer(args, model, output_dir, ema_model=ema_model, trigger=trigger)
-		trainer.train(labeled_ds, unlabeled_ds, test_ds)
-		restore_parameters(args, state)
-	else:
-		raise ValueError()
+	state = load_fixmatch_parameters(args)
+	output_dir = os.path.join(args.out, args.ssl_dataset_name + "_" + args.model_name + "_" + trigger.name, get_pretrain_path(args), get_poison_path(args), fixmatch.FixmatchTrainer.get_experiment_name(args))
+	os.makedirs(output_dir, exist_ok=True)
+	trainer = fixmatch.FixmatchTrainer(args, model, output_dir, ema_model=ema_model, trigger=trigger)
+	trainer.train(labeled_ds, unlabeled_ds, test_ds)
+	restore_parameters(args, state)
 
 
 

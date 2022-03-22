@@ -142,7 +142,6 @@ class DatasetWrapper(object):
 	def clone(self):
 		return DatasetWrapper(self.data.copy(), self.targets.copy(), self.transform)
 
-
 	def save_imgs_to_dir(self, save_path):
 		"""
 			将图片全部保存到save_path下面。
@@ -194,37 +193,6 @@ class DatasetWrapper(object):
 		load_imgs = np.concatenate([split_images(img, n) for img, n in zip(load_imgs, num_list)], axis=0)
 	
 		return load_imgs
-
-
-	def save_imgs_to_dir_structured(self, save_path, class_name_list=None):
-		class_list = np.unique(self.targets)
-
-		for class_ind in class_list:
-			if class_name_list is not None:
-				class_name = class_name_list[class_ind]
-			else:
-				class_name = str(class_ind)
-
-			class_save_path = os.path.join(save_path, class_name)
-			if not os.path.exists(class_save_path):
-				os.mkdir(class_save_path)
-
-			class_imgs = self.data[np.where(self.targets == class_ind)[0]]
-			num_images = class_imgs.shape[0]
-			num_outputs = (num_images + 99) // 100
-			logger.info("DatasetWrapper write to {}, class {}, {} images".format(class_save_path, class_name, num_outputs))
-
-			for i in range(num_outputs):
-				if i != num_outputs - 1:
-					imgs = class_imgs[i*100:(i+1)*100]
-				else:
-					imgs = class_imgs[i*100:]
-				imgs = imgs[:, :, :, ::-1]
-				imgs = img_grid(imgs, nb_images_per_row=10, pad=0, pad_value=0)
-				cv2.imwrite(os.path.join(save_path, '%05d.jpg'%i), np.uint8(imgs), [cv2.IMWRITE_PNG_COMPRESSION, 0])
-
-
-
 
 
 

@@ -7,7 +7,6 @@ import numpy as np
 from PIL import Image
 
 
-
 from dataset.dataset_utils import DatasetWrapper
 from torchvision import transforms
 from torch.utils.data import Dataset
@@ -20,8 +19,6 @@ def load_trigger(trigger_id, patch_size, args):
 	trigger = Image.open('triggers/trigger_{}.png'.format(trigger_id)).convert('RGB')
 	trigger = trans_trigger(trigger).unsqueeze(0).cuda(args.device)
 	return trigger
-
-
 
 
 def load_trigger_numpy(trigger_id, patch_size, args):

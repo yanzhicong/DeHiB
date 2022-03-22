@@ -36,6 +36,7 @@ def dehib_poison(
 	seed=0,
 ):
 
+
 	""" 生成DeHiB中毒数据
 	Args:
 
@@ -55,17 +56,14 @@ def dehib_poison(
 	t_images_ds.save_imgs_to_dir(output_clean_dir)
 
 
-	s_images_ds.transform = transforms.Compose([
-		transforms.ToTensor(),
-	])
+	s_images_ds.transform = transforms.Compose([transforms.ToTensor(),])
+	t_images_ds.transform = transforms.Compose([transforms.ToTensor(),])
 
-	t_images_ds.transform = transforms.Compose([
-		transforms.ToTensor(),
-	])
 
 	model_wrapper = SequentialWrapper(norm_trans, model)	
 	model_wrapper = model_wrapper.to(args.device)
 	model_wrapper.eval()
+
 
 	if len(s_images_ds) < len(t_images_ds):
 		s_images_ds = DatasetExpandWrapper(s_images_ds, len(t_images_ds))
@@ -96,9 +94,8 @@ def dehib_poison(
 
 		u_images_tri_pert = perturb_image(args, model_wrapper, u_images_tri, t_images, p_targets, args.device)
 
-		input_u = u_images_tri.clone().cpu().data.numpy()
+		
 		input_pert = u_images_tri_pert.clone().cpu().data.numpy()
-		diff = np.abs(input_u - input_pert)
 		input_tri_pert_list.append(input_pert)
 
 
@@ -106,11 +103,9 @@ def dehib_poison(
 	input_tri_pert_list = input_tri_pert_list.transpose([0, 2, 3, 1])
 	input_tri_pert_list = input_tri_pert_list.astype(np.uint8)
 
-	poisoned_dataset = DatasetWrapper(input_tri_pert_list, 
-						np.zeros([len(input_tri_pert_list), ], np.int32),
+	poisoned_dataset = DatasetWrapper(input_tri_pert_list, np.zeros([len(input_tri_pert_list), ], np.int32),
 						transform=unlabeled_dataset.transform)
 	
-
 	output_poisoned_dir = os.path.join(output_dir, 'poisoned')
 	os.makedirs(output_poisoned_dir, exist_ok=True)
 	poisoned_dataset.save_imgs_to_dir(output_poisoned_dir)

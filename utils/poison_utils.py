@@ -48,7 +48,6 @@ def adjust_poison_learning_rate(lr, iter, steps=150):
 
 
 
-
 def perturb_image(args, model, img, img_s, targets, device, mask_theta=0.95):
 
 	eps = float(args.poison_eps) / 255.0
@@ -60,33 +59,32 @@ def perturb_image(args, model, img, img_s, targets, device, mask_theta=0.95):
 
 	model.eval()
 
-	feat_s, u_output_s = model.emb_and_cfy(img_s)
+	feat_s, _ = model.emb_and_cfy(img_s)
 	feat_s = feat_s.detach().clone()
 
 	if not args.no_progress:
 		p_bar = tqdm(range(args.poison_num_iter), ascii=True)
 
+
 	for iter_index in range(args.poison_num_iter):
 		lr1 = adjust_poison_learning_rate(args.poison_lr, u_pert, steps=args.poison_lr_decay_steps)
-
 
 		feat, u_output = model.emb_and_cfy(img + u_pert)
 		u_probs = F.softmax(u_output, dim=1).cpu().detach().numpy()
 
-		if iter_index % 30 == 0:
-			dist = torch.cdist(feat_s, feat)
-			argmin_ind = torch.argmin(dist, dim=0)
-			feat_s2 = feat_s[argmin_ind]
 
 
-		loss2 = ((feat_s2-feat)**2).sum(dim=1).sum()
-
-		# 
 		mean_prob = u_probs.mean(axis=0)
 		target_prob = u_probs[:, -1]
 		mask = (target_prob > mask_theta).astype(np.float32).mean()
 
 		loss1 = F.cross_entropy(u_output, targets, reduction="mean")
+
+		if iter_index % 30 == 0:
+			dist = torch.cdist(feat_s, feat)
+			argmin_ind = torch.argmin(dist, dim=0)
+			feat_s2 = feat_s[argmin_ind]
+		loss2 = ((feat_s2-feat)**2).sum(dim=1).sum()
 
 		loss = loss1 + loss2 * args.poison_lam
 
@@ -101,10 +99,8 @@ def perturb_image(args, model, img, img_s, targets, device, mask_theta=0.95):
 		u_pert = u_pert + img
 		u_pert = u_pert.clamp(0.0, 1.0)
 
-
 		diff = torch.abs(u_pert - img)
 		diff_max = torch.max(diff).cpu().item()
-
 
 		if not args.no_progress:
 			p_bar.set_description(

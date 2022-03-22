@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 PARAMETER_MAX = 10
 
-
 def AutoContrast(img, **kwarg):
     return PIL.ImageOps.autocontrast(img)
 

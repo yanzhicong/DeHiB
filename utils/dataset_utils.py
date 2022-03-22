@@ -15,7 +15,6 @@ from dataset.cifar100 import *
 logger = logging.getLogger(__name__)
 
 
-
 def get_dataset(args):
 	"""
 		get dataset for training
@@ -42,7 +41,6 @@ def get_dataset(args):
 		return get_subsvhn(data_root, args.dataset)
 	else:
 		raise ValueError('Unknown Dataset : ', args.dataset)
-
 
 
 
@@ -169,7 +167,6 @@ def get_transform(dataset_name, train=True, norm=True, only_norm=False, fixmatch
 
 
 
-
 def get_dataset_num_classes(dataset_name):
 	if dataset_name == 'cifar10' or dataset_name == 'svhn':
 		return 10
@@ -181,5 +178,3 @@ def get_dataset_num_classes(dataset_name):
 		return len(dataset_name.split('_')[1:])
 	else:
 		raise ValueError()
-
-

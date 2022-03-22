@@ -1,0 +1,16 @@
+*.json
+*.txt
+*.pyc
+*.lib
+*.pyd
+*.dll
+*.suo
+*.sqlite
+*.ps1
+*.sh
+*.exp
+*.html
+
+*.log
+*.svg
+*.pkl

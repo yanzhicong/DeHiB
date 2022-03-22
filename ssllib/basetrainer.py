@@ -353,6 +353,7 @@ class Trainer(object):
 
 			return test_loss, test_acc_top1, test_acc_top5
 
+
 		if test_loader is not None:
 
 			# 测试模型

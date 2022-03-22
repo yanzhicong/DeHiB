@@ -18,8 +18,6 @@ logger = logging.getLogger(__name__)
 cifar10_classes = ['airplane','automobile','bird','cat','deer','dog','frog','horse','ship','truck',]
 
 
-
-
 def get_cifar10_val_trans():
 	return transforms.Compose([
 		transforms.ToTensor(),
@@ -51,9 +49,6 @@ cifar_trans_val = transforms.Compose([
 		transforms.ToTensor(),
 		transforms.Normalize(mean=cifar10_mean, std=cifar10_std)
 ])
-
-
-
 
 
 def get_cifar10(root, trans_train=cifar_trans_train, trans_val=cifar_trans_val):

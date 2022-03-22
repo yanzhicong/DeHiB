@@ -23,6 +23,7 @@ def add_common_train_args(parser):
 	# Dataset parameters
 	parser.add_argument('--dataset', default='cifar10', type=str,
 						help='dataset name')
+						
 	# Dataset parameters (if SSL)
 	parser.add_argument('--num-labeled', type=int, default=4000, help='number of labeled data')
 	parser.add_argument('--split-id', type=int, default=0, help="dataset split")
@@ -43,7 +44,6 @@ def add_common_train_args(parser):
 
 
 	args = parser.parse_args()
-
 
 	if args.local_rank not in [-1, 0]:
 		args.no_progress = True
@@ -69,7 +69,6 @@ def add_common_train_args(parser):
 		elif args.dataset == 'cifar100' or args.dataset.startswith('subcifar100_'):
 			args.model_depth = 28
 
-
 	if args.model_width is None:
 		if args.dataset == 'cifar10' or args.dataset.startswith('subcifar10_'):
 			args.model_width = 2 if args.arch == 'wideresnet' else 4
@@ -78,7 +77,6 @@ def add_common_train_args(parser):
 		elif args.dataset == 'cifar100' or args.dataset.startswith('subcifar100_'):
 			args.model_width = 10 if args.arch == 'wideresnet' else 64
 
-
 	if args.model_cardinality is None:
 		if args.dataset == 'cifar10' or args.dataset.startswith('subcifar10_'):
 			args.model_cardinality = 4
@@ -86,7 +84,6 @@ def add_common_train_args(parser):
 			args.model_cardinality = 4
 		elif args.dataset == 'cifar100' or args.dataset.startswith('subcifar100_'):
 			args.model_cardinality = 8
-
 
 	if args.arch == "wideresnet":
 		args.model_name = "wideresnet_{}x{}".format(args.model_depth, args.model_width)
