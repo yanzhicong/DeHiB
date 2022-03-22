@@ -22,7 +22,8 @@ Now only experiments on CIFAR-10 and CIFAR-100 are available.
 - Pillow
 
 
-## References
+## Cite
+If you find this code is useful for your research, please cite our paper:
 ```
 @article{yan2021dehib, 
     title={DeHiB: Deep Hidden Backdoor Attack on Semi-supervised Learning via Adversarial Perturbation}, 
@@ -32,3 +33,8 @@ Now only experiments on CIFAR-10 and CIFAR-100 are available.
     pages={10585-10593} 
 }
 ```
+
+
+## Contacts
+
+If you have any questions, drop an email to zhicongy@sjtu.edu.cn
